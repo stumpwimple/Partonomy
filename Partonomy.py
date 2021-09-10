@@ -17,12 +17,12 @@ list_of = {}
 categories_of_list = {}
 
 the_aggregate = OrderedDict()
-build_aggregate = OrderedDict()
+#build_aggregate = OrderedDict()
 
 class Trait:
     """Trait Class - A class that displays a trait ui, with a number of other ui elements meant for running a pprpg"""
 
-    def __init__(self, trait_name, trait_id, parent_id, children_id, rand_table, trait_type = "untyped", primary_trait=False, trait_unit=""):
+    def __init__(self, trait_name, trait_id, parent_id, children_id=[], rand_table="", trait_type = "untyped", primary_trait=False, trait_unit=""):
         self.trait_name = trait_name
         self.trait_id = trait_id
         self.parent_id = parent_id
@@ -52,7 +52,7 @@ class Trait:
 
 class Build_Trait:
 
-    def __init__(self, trait_id, trait_name="", parent_id=0, children_id=[], trait_logic_type = "default", rand_table="", complex_trait="false", trait_type="untyped",
+    def __init__(self, trait_id, trait_name="", parent_id="0", children_id=[], trait_logic_type = "default", rand_table="", complex_trait="false", trait_type="untyped",
                   primary_trait=False, trait_unit=""):
         self.trait_name = trait_name
         self.trait_id = trait_id
@@ -221,9 +221,10 @@ def main():
     global unique_trait_id
     global current_build_parent_id
     global build_aggregate
+    build_aggregate = OrderedDict()
 
     current_complex_trait = 0
-    build_aggregate["0"] = Build_Trait(0)
+    build_aggregate["0"] = Build_Trait("0")
 
 
     print(sg.Window.get_screen_size())
@@ -233,7 +234,7 @@ def main():
     screen_w = int(screen_w*.5)
     screen_h = int(screen_h*.8)
 
-
+    #For possible future menu implementation
     menu_def = [['&File', ['E&xit']],
                 ['&Help', ['&About']] ]
 
@@ -297,38 +298,39 @@ def main():
 
                     #print('In Key: ', key, " with Build ID: ", values[("BUILD_ID" + str(key))])
                     build_id = values[('BUILD_ID'+str(key))]
-                    print(type(build_id))
-                    #print("current_build_parent_id ",current_build_parent_id)
+                    print("build_id= ", build_id, "of type", type(build_id))
+                    if key == 0:
+                        print("in build_id= ", build_id)
+                        trait_parent_id = build_aggregate[values['BUILD_ID'+str(key)]].parent_id
+                    else:
+                        trait_parent_id = current_build_parent_id
+
                     build_aggregate[build_id] = Build_Trait(build_id,
                                                             trait_name=values['TRAIT_NAME'+str(key)],
-                                                            parent_id= current_build_parent_id,
                                                             trait_logic_type = ['TRAIT_LOGIC'+str(key)],
+                                                            parent_id = trait_parent_id,
                                                             rand_table=values['TRAIT_TABLE'+str(key)],
                                                             trait_unit = values['TRAIT_UNIT'+str(key)],
                                                             primary_trait=values['is_primary'+str(key)])
+                    build_aggregate[build_id].children_id = []
+                    # if key != 0:
+                    #     build_aggregate[build_id].parent_id = current_build_parent_id
+
                     build_id_parent = build_aggregate[build_id].parent_id
-                    print("I am ID: ", build_id, "And my parent is ", build_aggregate[build_id].parent_id)
-                    print("Other stuff: ", build_aggregate[build_id].trait_name, ", ", build_aggregate[build_id].rand_table, ", ", build_aggregate[build_id].trait_unit, ", ", build_aggregate[build_id].primary_trait)
-                    if build_id != 0 and key != 0:
+                    #print("I am ID: ", build_id, "And my parent is ", build_aggregate[build_id].parent_id," Other stuff: ", build_aggregate[build_id].trait_name, ", ", build_aggregate[build_id].rand_table, ", ", build_aggregate[build_id].trait_unit, ", ", build_aggregate[build_id].primary_trait)
+                    if key != 0:
                         window['EXPAND_TRAIT' + str(key)].update(disabled=False)
-                        #print("ADDING as Child id to ", current_build_parent_id)
-                        #print("CHILD LIST FOR ",current_build_parent_id, ". LIST: ", build_aggregate[current_build_parent_id].children_id)
 
                         if build_id != "0":
-                            build_aggregate[values["BUILD_ID0"]].children_id.append(str(build_id))
-                        print("CHILD LIST FOR ",current_build_parent_id, ". is now LIST: ", build_aggregate[current_build_parent_id].children_id)
+                            build_aggregate[current_build_parent_id].children_id.append(str(build_id))
 
-                        if key > 0:
-                            print("CHILD LIST FOR 1. is now LIST: ", build_aggregate["1"].children_id)
-                        if key > 1:
-                            print("CHILD LIST FOR 2. is now LIST: ", build_aggregate["2"].children_id)
 
 
         elif not LOGIC_window_active and event[:12] == 'EXPAND_TRAIT':
             layout_id = event[12:]
             #print("EXPANDING TRAIT in layout ID:", layout_id)
-            #print("current_build_parent_id=",current_build_parent_id)
             current_build_parent_id = values[('BUILD_ID' + layout_id)]
+            print("current_build_parent_id='",current_build_parent_id,"'")
             #print("current_build_parent_id=",current_build_parent_id)
             window['BUILD_ID0'].update(value=current_build_parent_id)
             window['TRAIT_NAME0'].update(value=build_aggregate[current_build_parent_id].trait_name)
@@ -339,20 +341,40 @@ def main():
 
             #print("children of ",current_build_parent_id, build_aggregate[current_build_parent_id].children_id)
             if build_aggregate[current_build_parent_id].children_id:
+                layout_id = 1
                 print("Expanding trait:",current_build_parent_id,", It already has children:", build_aggregate[current_build_parent_id].children_id)
-
+                for id in build_aggregate[current_build_parent_id].children_id:
+                    window['BUILD_ID'+str(layout_id)].update(value=build_aggregate[id].trait_id)
+                    window['TRAIT_NAME'+str(layout_id)].update(value=build_aggregate[id].trait_name)
+                    window['TRAIT_TABLE'+str(layout_id)].update(value=build_aggregate[id].rand_table)
+                    window['TRAIT_UNIT'+str(layout_id)].update(value=build_aggregate[id].trait_unit)
+                    window['is_complex'+str(layout_id)].update(value=build_aggregate[id].complex_trait)
+                    window['is_primary'+str(layout_id)].update(value=build_aggregate[id].primary_trait)
+                    window['EXPAND_TRAIT' + str(layout_id)].update(disabled=False)
+                    layout_id+=1
+                    
+                for empty_id in range(layout_id,26):
+                    #print('"BUILD_ID"' + str(empty_id) + ": " + values[("BUILD_ID" + str(empty_id))])
+                    window['BUILD_ID'+str(empty_id)].update(value=unique_build_id)
+                    unique_build_id += 1
+                    window['TRAIT_NAME'+str(empty_id)].update(value="")
+                    window['TRAIT_TABLE'+str(empty_id)].update(value="")
+                    window['TRAIT_UNIT'+str(empty_id)].update(value="")
+                    window['is_complex'+str(empty_id)].update(value=False)
+                    window['is_primary'+str(empty_id)].update(value=False)
+                    window['EXPAND_TRAIT'+str(empty_id)].update(disabled=True)
             else:
                 print("Expanded trait has NO children")
-                for key in range(1, 26):
-                    #print('"BUILD_ID"' + str(key) + ": " + values[("BUILD_ID" + str(key))])
-                    window['BUILD_ID'+str(key)].update(value=unique_build_id)
+                for empty_id in range(1, 26):
+                    #print('"BUILD_ID"' + str(empty_id) + ": " + values[("BUILD_ID" + str(empty_id))])
+                    window['BUILD_ID'+str(empty_id)].update(value=unique_build_id)
                     unique_build_id += 1
-                    window['TRAIT_NAME'+str(key)].update(text="")
-                    window['TRAIT_TABLE'+str(key)].update(default="")
-                    window['TRAIT_UNIT'+str(key)].update(text="")
-                    window['is_complex'+str(key)].update(default=False)
-                    window['is_primary'+str(key)].update(default=False)
-                    window['EXPAND_TRAIT'+str(key)].update(disabled=True)
+                    window['TRAIT_NAME'+str(empty_id)].update(value="")
+                    window['TRAIT_TABLE'+str(empty_id)].update(value="")
+                    window['TRAIT_UNIT'+str(empty_id)].update(value="")
+                    window['is_complex'+str(empty_id)].update(value=False)
+                    window['is_primary'+str(empty_id)].update(value=False)
+                    window['EXPAND_TRAIT'+str(empty_id)].update(disabled=True)
 
         elif not LOGIC_window_active and event == 'GO_TO_PARENT':
             print("GO_TO_PARENT: ", build_aggregate[current_build_parent_id].parent_id)
@@ -365,13 +387,36 @@ def main():
             window['is_complex0'].update(value=build_aggregate[current_build_parent_id].complex_trait)
             window['is_primary0'].update(value=build_aggregate[current_build_parent_id].primary_trait)
 
-
             print(current_build_parent_id)
             print("Other stuff: ", current_build_parent_id, ", ", build_aggregate[current_build_parent_id].trait_name, ", ", build_aggregate[current_build_parent_id].rand_table,
                   ", ", build_aggregate[current_build_parent_id].trait_unit, ", ", build_aggregate[current_build_parent_id].primary_trait)
 
             if build_aggregate[current_build_parent_id].children_id:
-                print("Expanding to parent trait:",current_build_parent_id,", It already has children:",build_aggregate[current_build_parent_id].children_id)
+                layout_id = 1
+                print("Expanding trait:", current_build_parent_id, ", It already has children:",
+                      build_aggregate[current_build_parent_id].children_id)
+
+                for id in build_aggregate[current_build_parent_id].children_id:
+                    window['BUILD_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
+                    window['TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
+                    window['TRAIT_TABLE' + str(layout_id)].update(value=build_aggregate[id].rand_table)
+                    window['TRAIT_UNIT' + str(layout_id)].update(value=build_aggregate[id].trait_unit)
+                    window['is_complex' + str(layout_id)].update(value=build_aggregate[id].complex_trait)
+                    window['is_primary' + str(layout_id)].update(value=build_aggregate[id].primary_trait)
+                    window['EXPAND_TRAIT' + str(layout_id)].update(disabled=False)
+                    layout_id += 1
+
+                for empty_id in range(layout_id, 26):
+                    # print('"BUILD_ID"' + str(empty_id) + ": " + values[("BUILD_ID" + str(empty_id))])
+                    window['BUILD_ID' + str(empty_id)].update(value=unique_build_id)
+                    unique_build_id += 1
+                    window['TRAIT_NAME' + str(empty_id)].update(value="")
+                    window['TRAIT_TABLE' + str(empty_id)].update(value="")
+                    window['TRAIT_UNIT' + str(empty_id)].update(value="")
+                    window['is_complex' + str(empty_id)].update(value=False)
+                    window['is_primary' + str(empty_id)].update(value=False)
+                    window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
+
             else:
                 print("Expanded trait has NO children")
                 for key in range(1, 26):
