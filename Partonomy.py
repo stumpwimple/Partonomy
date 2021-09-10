@@ -228,6 +228,7 @@ def main():
 
 
     print(sg.Window.get_screen_size())
+
     global screen_w, screen_h
     screen_w, screen_h = sg.Window.get_screen_size()
 
@@ -286,21 +287,12 @@ def main():
             logic_window = logic_tabbed_layout()  
             test_int = event[5:]
             print("[LOG] User Entered LOGIC #"+event[5:]+" menu: ")
-        elif not LOGIC_window_active and event == 'ADD_TRAIT':
-            print("MOCK: ADDING TRAIT #", unique_build_id)
         elif not LOGIC_window_active and event == 'SAVE_ALL':
             print("SAVING")
-
             for key in range (0,26):
-
                 if values[('TRAIT_TABLE'+str(key))] != "" and values[('TRAIT_NAME' +str(key))] != "":
-                    #print(values[('TRAIT_NAME' + str(key))], "  ", values[('TRAIT_TABLE' + str(key))])
-
-                    #print('In Key: ', key, " with Build ID: ", values[("BUILD_ID" + str(key))])
                     build_id = values[('BUILD_ID'+str(key))]
-                    print("build_id= ", build_id, "of type", type(build_id))
                     if key == 0:
-                        print("in build_id= ", build_id)
                         trait_parent_id = build_aggregate[values['BUILD_ID'+str(key)]].parent_id
                     else:
                         trait_parent_id = current_build_parent_id
@@ -313,11 +305,6 @@ def main():
                                                             trait_unit = values['TRAIT_UNIT'+str(key)],
                                                             primary_trait=values['is_primary'+str(key)])
                     build_aggregate[build_id].children_id = []
-                    # if key != 0:
-                    #     build_aggregate[build_id].parent_id = current_build_parent_id
-
-                    build_id_parent = build_aggregate[build_id].parent_id
-                    #print("I am ID: ", build_id, "And my parent is ", build_aggregate[build_id].parent_id," Other stuff: ", build_aggregate[build_id].trait_name, ", ", build_aggregate[build_id].rand_table, ", ", build_aggregate[build_id].trait_unit, ", ", build_aggregate[build_id].primary_trait)
                     if key != 0:
                         window['EXPAND_TRAIT' + str(key)].update(disabled=False)
 
