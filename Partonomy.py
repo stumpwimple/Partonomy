@@ -1,8 +1,7 @@
-import PySimpleGUI as sg
-import math
 import random
-import webbrowser
 from collections import OrderedDict
+
+import PySimpleGUI as sg
 from openpyxl import load_workbook
 
 min_dc = 1
@@ -56,7 +55,7 @@ class Trait:
 
 class Build_Trait:
 
-    def __init__(self, trait_id, trait_name="", parent_id="0", children_id=[], trait_logic_type="default",
+    def __init__(self, trait_id, trait_name="", parent_id="0", children_id=[], trait_logic_type="NoLogic",
                  rand_table="Error", complex_trait="false", trait_type="untyped", primary_trait=False, trait_unit=""):
         self.trait_name = trait_name
         self.trait_id = trait_id
@@ -234,7 +233,7 @@ def game_layout():
 
 def logic_tabbed_window():
     if_then_layout = [[sg.Text("If Then Logic Settings"), sg.Text("",size=(20,1)), sg.Checkbox("Else?", key="if_else")],
-                      [sg.Text("If: "), sg.Combo(values=aggregate_list, size=(30, 1), key="test_id"), #Need to be changed to list of existing traits in aggregate
+                      [sg.Text("If: "), sg.Combo(values=aggregate_list, size=(30, 1), key="if_test"), #Need to be changed to list of existing traits in aggregate
                        sg.Combo(values=('<','>','=','!='),size=(5, 1), key="if_condition"),
                        sg.Combo(values="",size=(30, 1), key="if_test_string")],
                        [],
@@ -249,13 +248,13 @@ def logic_tabbed_window():
 
 
     case_layout = [[sg.Text("Case Logic Settings")]]
-    for i in range(1,6):
-        case_layout+= [[sg.Text("CASE " + str(i) + ":"),sg.Combo(values=aggregate_list,size=(30,1), key="case_"+str(i)),
+    case_layout += [[sg.Text("CASE 1:",size=(20,1)), sg.Combo(values=aggregate_list, size=(30, 1), key="case_1"), sg.Text("="),
+                     sg.Combo(values=('Select a Case'), size=(30, 1), key="case_test_1"),
+                     sg.Text("   Trait Roll"), sg.Combo(values=[*list_of], size=(30, 1), key="case_roll_1")]]
+
+    for i in range(2,6):
+        case_layout+= [[sg.Text("",size=(20,1)),sg.Text("",size=(30,1)),
                         sg.Text("="),sg.Combo(values=('possible roll results','more','+more'),size=(30,1), key="case_test_"+str(i)), sg.Text("   Trait Roll"), sg.Combo(values=[*list_of], size=(30, 1), key="case_roll_"+str(i))]]
-
-
-
-
 
     exploding_layout = [[sg.Text("Exploding Logic Settings")]]
     inherit_layout = [[sg.Text("Inherit Logic Settings")]]
@@ -263,28 +262,28 @@ def logic_tabbed_window():
     inherit_layout += [[]]
 
     layout = [[sg.TabGroup(
-        [[sg.Tab('NoLogic', [[sg.Text("Logic set to Default")]]),
+        [[sg.Tab('NoLogic', [[sg.Text("Logic set to default or NoLogic")]]),
           sg.Tab('If-Then', if_then_layout),
           sg.Tab('Quantity', quantity_layout),
           sg.Tab('Chance', chance_layout),
           sg.Tab('Case', case_layout),
           #sg.Tab('Exploding', exploding_layout),
           #sg.Tab('Inherit', inherit_layout)
-                ]])],
+                ]],k="Logic_Tabs",)],
               [sg.Text('',size=(40,1)), sg.Button('CANCEL', k='Logic_cancel'),
                sg.Button('OK', k='Logic_ok')]]
 
     return sg.Window("Select Logic", layout, modal=True)
 
 class Build_Logic:
-    def __init__(self, type="NoLogic", if_else=False,if_build_id="",if_test_string="", if_true_trait="", if_else_trait="",
-                 chance_percent="",if_condition="",quantity_count=1, case_cases=[[""]*3]*6):
+    def __init__(self, type="NoLogic", if_else=False,if_test="",if_test_string="", if_true_trait="", if_else_trait="",
+                 chance_percent="",if_condition="",quantity_count=1, case_case="",case_test="",case_roll=""):
         self.type = type
         if self.type == "NoLogic":
             pass
         elif self.type == "If-Then":
             self.if_else = if_else
-            self.if_build_id = if_build_id
+            self.if_test = if_test
             self.if_condition = if_condition
             self.if_test_string = if_test_string
             self.if_true_trait = if_true_trait
@@ -294,16 +293,19 @@ class Build_Logic:
         elif self.type == "Quantity":
             self.quantity_count = quantity_count
         elif self.type == "Case":
-            self.case_cases=case_cases
+            self.case_case = case_case
+            self.case_test = case_test
+            self.case_roll = case_roll
 
 
     def __str__(self):
+        print_str=""
         if self.type == "NoLogic":
             print_str = "No Logic"
         elif self.type == "If-Then":
             print_str = "If-Then"
             print_str += str(self.if_else)
-            print_str += str(self.if_build_id)
+            print_str += str(self.if_test)
             print_str += str(self.if_condition)
             print_str += str(self.if_test_string)
             print_str += str(self.if_true_trait)
@@ -316,7 +318,7 @@ class Build_Logic:
             print_str += str(self.quantity_count)
         elif self.type == "Case":
             print_str = "Case"
-            print_str += str(self.case_cases)
+            print_str += str(self.case_case,"||",self.case_test,"||",self.case_roll)
         return print_str
 
     print("in Build_Logic")
@@ -405,14 +407,16 @@ def main():
     global list_of
     global aggregate_list
 
-    last_case = ["" for i in range(0,6)]
+    case_test = ['']*6
+    case_roll = ['']*6
+    print (case_test)
+    print(case_roll)
+
+    last_case = ['']*6
     print(last_case)
 
-    last_if = ""
 
-    case_cases = [[''] * 3] * 6
-    print(case_cases)
-    print(case_cases[0])
+    last_if = ""
 
     current_complex_trait = 0
     build_aggregate["0"] = Build_Trait("0")
@@ -473,6 +477,7 @@ def main():
 
         if not LOGIC_window_active and event[:5] == "LOGIC":  # LOOK AT LEFT 5 CHARACTERS of EVENT TO DETERMINE IF ANY LOGIC BUTTON HAS BEEN PRESSED
             LOGIC_window_active = True
+            load_existing_logic = True
             logic_window = logic_tabbed_window()
             logic_key = event[5:]
             print("[LOG] User Entered LOGIC #" + logic_key + " menu: ")
@@ -722,94 +727,130 @@ def main():
             # print("logic_event=",logic_event)
             # for value in logic_values:
             #     print("logic_values[",value,"]=", logic_values[value])
-            if logic_values[0] == "Case":
-                for i in range(1,6):
-                    if (logic_values['case_'+str(i)]) and (logic_values['case_'+str(i)] != last_case[i]):
-                        table=build_aggregate[logic_values['case_' + str(i)].split(":")[0]].rand_table
-                        last_case[i] = logic_values['case_'+str(i)]
-                        if table in [*list_of]:
-                            print("in if 'if table in [*list_of]'")
-                            list_of_elements = list_of[table]
-                            print ("list of elements:",list_of_elements)
-                            logic_window['case_test_'+ str(i)].update(values=list_of_elements)
-            elif logic_values[0] == "If-Then":
-                if (logic_values['test_id']) and (logic_values['test_id']) != last_if:
-                    table = build_aggregate[logic_values['test_id'].split(":")[0]].rand_table
-                    last_if = (logic_values['test_id'])
-                    if table in [*list_of]:
-                        print("in if 'if table in [*list_of]'")
-                        list_of_elements = list_of[table]
-                        print ("list of elements:",list_of_elements)
-                        logic_window['if_test_string'].update(values=list_of_elements)
-
-
             if logic_event == None:
                 close_logic_window = True
+            else:
+                if build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic.type != "NoLogic" and load_existing_logic:
+                    active_logic=build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic
+                    if active_logic.type == "If-Then":
+                        logic_window['if_else'].update(value=active_logic.if_else)
+                        logic_window['if_test'].update(value=active_logic.if_test)
+                        logic_window['if_condition'].update(value=active_logic.if_condition)
+                        logic_window['if_test_string'].update(value=active_logic.if_test_string)
+                        logic_window['if_true_trait'].update(value=active_logic.if_true_trait)
+                        logic_window['if_else_trait'].update(value=active_logic.if_else_trait)
+                        logic_window.Element('If-Then').Select()
+                        last_if=""
+                    elif active_logic.type == "Quantity":
+                        logic_window['quantity_count'].update(value=active_logic.quantity_count)
+                        logic_window.Element('Quantity').Select()
+                    elif active_logic.type == "Chance":
+                        logic_window['chance_percent'].update(value=active_logic.chance_percent)
+                        logic_window.Element('Chance').Select()
+                    elif active_logic.type == "Case":
+                        for i in range (1,6):
+                            if i == 1:
+                                logic_window['case_1'].update(value=active_logic.case_case)
+                                last_case[i]=(logic_values['case_1'])
+                            logic_window['case_test_'+str(i)].update(value=active_logic.case_test[i])
+                            logic_window['case_roll_'+str(i)].update(value=active_logic.case_roll[i])
 
-            elif logic_event == 'Logic_cancel':
-                close_logic_window = True
+                        logic_window.Element('Case').Select()
+                    load_existing_logic = False
 
-            elif logic_event == 'Logic_ok':
-                print("LOGIC CONFIRMED")
-                temp_logic = Build_Logic()
-                build_id = values["BUILD_ID"+str(logic_key)]
 
-                if logic_values[0] == "NoLogic":
-                    temp_logic = Build_Logic(type="NoLogic")
-                    build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
+                if logic_values["Logic_Tabs"] == "Case":
+                    for i in range(1,6):
+                        if (logic_values['case_1']) and (logic_values['case_1'] != last_case[i]):
+                            table=build_aggregate[logic_values['case_1'].split(":")[0]].rand_table
+                            last_case[i] = logic_values['case_1']
+                            if table in [*list_of]:
+                                list_of_elements = list_of[table]
+                                logic_window['case_test_'+ str(i)].update(values=list_of_elements, value=logic_values['case_test_'+str(i)])
+                elif logic_values["Logic_Tabs"] == "If-Then":
+                    if (logic_values['if_test']) and (logic_values['if_test'] != last_if):
+                        table = build_aggregate[logic_values['if_test'].split(":")[0]].rand_table
+                        last_if = (logic_values['if_test'])
+                        if table in [*list_of]:
+                            list_of_elements = list_of[table]
+                            logic_window['if_test_string'].update(values=list_of_elements, value = logic_values['if_test_string'])
+
+                if logic_event == 'Logic_cancel':
                     close_logic_window = True
-                elif logic_values[0] == "If-Then":
-                    if logic_values["if_condition"] !="" and logic_values["test_id"] != "" and logic_values["if_test_string"] !="" and logic_values["if_true_trait"] != "" and logic_values["if_else_trait"] != "":
-                        temp_logic = Build_Logic(type="If-Then", if_else = logic_values["if_else"], if_condition=logic_values["if_condition"],
-                                                 if_build_id=logic_values["test_id"],if_test_string=logic_values["if_test_string"],
-                                                 if_true_trait = logic_values["if_true_trait"], if_else_trait = logic_values["if_else_trait"])
+
+                elif logic_event == 'Logic_ok':
+                    print("LOGIC CONFIRMED")
+                    temp_logic = Build_Logic()
+                    build_id = values["BUILD_ID"+str(logic_key)]
+
+                    if logic_values["Logic_Tabs"] == "NoLogic":
+                        temp_logic = Build_Logic(type="NoLogic")
                         build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
                         close_logic_window = True
-                    else:
-                        print("Entry is OUT OF BOUNDS!")
-                elif logic_values[0] == "Quantity":
-                    print("Quantity OK")
-                    if (logic_values["quantity_count"]).isdigit() and int(logic_values["quantity_count"]) > 1 and int(logic_values["quantity_count"]) < 10:
-                        temp_logic = Build_Logic(type="Quantity",quantity_count=int(logic_values['quantity_count']))
-                        build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
-                        close_logic_window = True
-                    else:
-                        print("Entry is OUT OF BOUNDS!")
-                elif logic_values[0] == "Chance":
-                    print("Chance OK")
-                    if (logic_values["chance_percent"]).isdigit() and int(logic_values["chance_percent"]) > 0 and int(
-                            logic_values["chance_percent"]) < 100:
-                        temp_logic = Build_Logic(type="Chance",chance_percent=int(logic_values['chance_percent']))
-                        build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
-                        close_logic_window = True
-                    else:
-                        print("Entry is OUT OF BOUNDS!")
-                elif logic_values[0] == "Case":
-                    print("Case OK")
-                    last_case = ["" for i in range(0,6)]
-                    for case in range(1,6):
-                        if logic_values['case_'+str(case)] != "" and logic_values['case_test_'+str(case)] != "" and logic_values['case_roll_'+str(case)] != "":
-                            case_cases[case][0]=logic_values['case_'+str(case)]
-                            case_cases[case][1]=logic_values['case_test_'+str(case)]
-                            case_cases[case][2]=logic_values['case_roll_'+str(case)]
-                            print("New Case= ",case_cases[case])
-                    if case_cases != [[""]*3]*6:
-                        temp_logic = Build_Logic(type="Case",case_cases=case_cases)
-                        build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
-                        close_logic_window = True
-                    else:
-                        print("Entry is OUT OF BOUNDS!")
+                    elif logic_values["Logic_Tabs"] == "If-Then":
+                        print("If-Then OK")
+                        if logic_values["if_condition"] !="" and logic_values["if_test"] != "" and logic_values["if_test_string"] !="" and logic_values["if_true_trait"] != "" and logic_values["if_else_trait"] != "":
+                            temp_logic = Build_Logic(type="If-Then", if_else = logic_values["if_else"], if_condition=logic_values["if_condition"],
+                                                     if_test=logic_values["if_test"],if_test_string=logic_values["if_test_string"],
+                                                     if_true_trait = logic_values["if_true_trait"], if_else_trait = logic_values["if_else_trait"])
+                            build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
+                            close_logic_window = True
+                        else:
+                            print("Entry is OUT OF BOUNDS!")
+                    elif logic_values["Logic_Tabs"] == "Quantity":
+                        print("Quantity OK")
+                        if (logic_values["quantity_count"]).isdigit() and int(logic_values["quantity_count"]) > 1 and int(logic_values["quantity_count"]) < 10:
+                            temp_logic = Build_Logic(type="Quantity",quantity_count=int(logic_values['quantity_count']))
+                            build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
+                            close_logic_window = True
+                        else:
+                            print("Entry is OUT OF BOUNDS!")
+                    elif logic_values["Logic_Tabs"] == "Chance":
+                        print("Chance OK")
+                        if (logic_values["chance_percent"]).isdigit() and int(logic_values["chance_percent"]) > 0 and int(
+                                logic_values["chance_percent"]) < 100:
+                            temp_logic = Build_Logic(type="Chance",chance_percent=int(logic_values['chance_percent']))
+                            build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
+                            close_logic_window = True
+                        else:
+                            print("Entry is OUT OF BOUNDS!")
+                    elif logic_values["Logic_Tabs"] == "Case":
+                        print("Case OK")
+                        last_case = ["" for i in range(0,6)]
 
+                        if logic_values['case_1'] != "" and logic_values['case_test_1'] != "" and logic_values['case_roll_1'] != "":
+                            case_case=logic_values['case_1']
+                            case_test[1]=logic_values['case_test_1']
+                            case_roll[1]=logic_values['case_roll_1']
+                        if logic_values['case_1'] != "" and logic_values['case_test_2'] != "" and logic_values['case_roll_2'] != "":
+                            case_case=logic_values['case_1']
+                            case_test[2]=logic_values['case_test_2']
+                            case_roll[2]=logic_values['case_roll_2']
+                        if logic_values['case_1'] != "" and logic_values['case_test_3'] != "" and logic_values['case_roll_3'] != "":
+                            case_case = logic_values['case_1']
+                            case_test[3] = logic_values['case_test_3']
+                            case_roll[3] = logic_values['case_roll_3']
+                        if logic_values['case_1'] != "" and logic_values['case_test_4'] != "" and logic_values['case_roll_4'] != "":
+                            case_case = logic_values['case_1']
+                            case_test[4] = logic_values['case_test_4']
+                            case_roll[4] = logic_values['case_roll_4']
+                        if logic_values['case_1'] != "" and logic_values['case_test_5'] != "" and logic_values['case_roll_5'] != "":
+                            case_case = logic_values['case_1']
+                            case_test[5] = logic_values['case_test_5']
+                            case_roll[5] = logic_values['case_roll_5']
+                        if case_case != "":
+                            temp_logic = Build_Logic(type="Case",case_case=case_case, case_test=case_test,case_roll=case_roll)
+                            build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
+                            close_logic_window = True
+                        else:
+                            print("Entry is OUT OF BOUNDS!")
 
-
-
-                elif logic_values[0] == "Exploding":
-                    print("Exploding OK")
-                elif logic_values[0] == "Inherit":
-                    print("Inherit OK")
+                    elif logic_values["Logic_Tabs"] == "Exploding":
+                        print("Exploding OK")
+                    elif logic_values["Logic_Tabs"] == "Inherit":
+                        print("Inherit OK")
 
             if close_logic_window:
-                print(temp_logic.type, " :", temp_logic)
                 LOGIC_window_active = False
                 logic_window.close()
 
