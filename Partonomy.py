@@ -1,8 +1,7 @@
-import PySimpleGUI as sg
-import math
 import random
-import webbrowser
 from collections import OrderedDict
+
+import PySimpleGUI as sg
 from openpyxl import load_workbook
 
 min_dc = 1
@@ -256,10 +255,6 @@ def logic_tabbed_window():
     for i in range(2,6):
         case_layout+= [[sg.Text("",size=(20,1)),sg.Text("",size=(30,1)),
                         sg.Text("="),sg.Combo(values=('possible roll results','more','+more'),size=(30,1), key="case_test_"+str(i)), sg.Text("   Trait Roll"), sg.Combo(values=[*list_of], size=(30, 1), key="case_roll_"+str(i))]]
-
-
-
-
 
     exploding_layout = [[sg.Text("Exploding Logic Settings")]]
     inherit_layout = [[sg.Text("Inherit Logic Settings")]]
@@ -730,16 +725,14 @@ def main():
             close_logic_window=False
             logic_event, logic_values = logic_window.read(timeout=100)
             # print("logic_event=",logic_event)
-
+            # for value in logic_values:
+            #     print("logic_values[",value,"]=", logic_values[value])
             if logic_event == None:
                 close_logic_window = True
             else:
                 if build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic.type != "NoLogic" and load_existing_logic:
                     active_logic=build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic
-                    print("in Logic Window with existing logic to post with active_logic.type=",active_logic.type)
-
                     if active_logic.type == "If-Then":
-                        print("Posting Existing Logic to Logic Window: If-Then")
                         logic_window['if_else'].update(value=active_logic.if_else)
                         logic_window['if_test'].update(value=active_logic.if_test)
                         logic_window['if_condition'].update(value=active_logic.if_condition)
@@ -749,15 +742,12 @@ def main():
                         logic_window.Element('If-Then').Select()
                         last_if=""
                     elif active_logic.type == "Quantity":
-                        print("Posting Existing Logic to Logic Window: Quantity")
                         logic_window['quantity_count'].update(value=active_logic.quantity_count)
                         logic_window.Element('Quantity').Select()
                     elif active_logic.type == "Chance":
-                        print("Posting Existing Logic to Logic Window: Chance")
                         logic_window['chance_percent'].update(value=active_logic.chance_percent)
                         logic_window.Element('Chance').Select()
                     elif active_logic.type == "Case":
-                        print("Posting Existing Logic to Logic Window: Case:")
                         for i in range (1,6):
                             if i == 1:
                                 logic_window['case_1'].update(value=active_logic.case_case)
@@ -769,35 +759,21 @@ def main():
                     load_existing_logic = False
 
 
-
-                for value in logic_values:
-                    print("logic_values[",value,"]=", logic_values[value])
                 if logic_values["Logic_Tabs"] == "Case":
                     for i in range(1,6):
                         if (logic_values['case_1']) and (logic_values['case_1'] != last_case[i]):
                             table=build_aggregate[logic_values['case_1'].split(":")[0]].rand_table
                             last_case[i] = logic_values['case_1']
                             if table in [*list_of]:
-                                print("in if 'if table in [*list_of]'")
                                 list_of_elements = list_of[table]
-                                print ("list of elements:",list_of_elements)
                                 logic_window['case_test_'+ str(i)].update(values=list_of_elements, value=logic_values['case_test_'+str(i)])
                 elif logic_values["Logic_Tabs"] == "If-Then":
-                    print("In If-Then Tab, last_if =", last_if, "logic_values['if_test'] = ",logic_values['if_test'])
                     if (logic_values['if_test']) and (logic_values['if_test'] != last_if):
                         table = build_aggregate[logic_values['if_test'].split(":")[0]].rand_table
                         last_if = (logic_values['if_test'])
                         if table in [*list_of]:
-                            print("in if 'if table in [*list_of]'")
                             list_of_elements = list_of[table]
-                            print ("list of elements:",list_of_elements)
-                            its = logic_values['if_test_string']
-                            print(its)
-                            logic_window['if_test_string'].update(values=list_of_elements)
-                            logic_window['if_test_string'].update(value=its)
-
-
-
+                            logic_window['if_test_string'].update(values=list_of_elements, value = logic_values['if_test_string'])
 
                 if logic_event == 'Logic_cancel':
                     close_logic_window = True
@@ -841,63 +817,33 @@ def main():
                     elif logic_values["Logic_Tabs"] == "Case":
                         print("Case OK")
                         last_case = ["" for i in range(0,6)]
-                        # for i in range(1,6):
-                        #     print("i=", i )
-                        #     print("case_cases=", case_cases)
 
-                        print(logic_values['case_1'],":",logic_values['case_test_1'],":",logic_values['case_roll_1'])
-                        print(logic_values['case_1'],":",logic_values['case_test_2'],":",logic_values['case_roll_2'])
-                        print(logic_values['case_1'],":",logic_values['case_test_3'],":",logic_values['case_roll_3'])
-                        print(logic_values['case_1'],":",logic_values['case_test_4'],":",logic_values['case_roll_4'])
-                        print(logic_values['case_1'],":",logic_values['case_test_5'],":",logic_values['case_roll_5'])
                         if logic_values['case_1'] != "" and logic_values['case_test_1'] != "" and logic_values['case_roll_1'] != "":
-
-                            # case_cases[i][0]=logic_values['case_1']
-                            # case_cases[i][1]=logic_values['case_test_'+str(i)]
-                            # case_cases[i][2]=logic_values['case_roll_'+str(i)]
-
                             case_case=logic_values['case_1']
                             case_test[1]=logic_values['case_test_1']
                             case_roll[1]=logic_values['case_roll_1']
-                            print(case_test)
-                            print(case_roll)
-
-                            #print("in 1",case_cases[1][0], ":", case_cases[1][1], ":", case_cases[1][2])
-
                         if logic_values['case_1'] != "" and logic_values['case_test_2'] != "" and logic_values['case_roll_2'] != "":
                             case_case=logic_values['case_1']
                             case_test[2]=logic_values['case_test_2']
                             case_roll[2]=logic_values['case_roll_2']
-                            print(case_test)
-                            print(case_roll)
                         if logic_values['case_1'] != "" and logic_values['case_test_3'] != "" and logic_values['case_roll_3'] != "":
                             case_case = logic_values['case_1']
                             case_test[3] = logic_values['case_test_3']
                             case_roll[3] = logic_values['case_roll_3']
-                            print(case_test)
-                            print(case_roll)
                         if logic_values['case_1'] != "" and logic_values['case_test_4'] != "" and logic_values['case_roll_4'] != "":
                             case_case = logic_values['case_1']
                             case_test[4] = logic_values['case_test_4']
                             case_roll[4] = logic_values['case_roll_4']
-                            print(case_test)
-                            print(case_roll)
                         if logic_values['case_1'] != "" and logic_values['case_test_5'] != "" and logic_values['case_roll_5'] != "":
                             case_case = logic_values['case_1']
                             case_test[5] = logic_values['case_test_5']
                             case_roll[5] = logic_values['case_roll_5']
-                            print(case_test)
-                            print(case_roll)
-
                         if case_case != "":
                             temp_logic = Build_Logic(type="Case",case_case=case_case, case_test=case_test,case_roll=case_roll)
                             build_aggregate[values["BUILD_ID" + str(logic_key)]].trait_logic = temp_logic
                             close_logic_window = True
                         else:
                             print("Entry is OUT OF BOUNDS!")
-
-
-
 
                     elif logic_values["Logic_Tabs"] == "Exploding":
                         print("Exploding OK")
