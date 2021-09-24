@@ -1,6 +1,10 @@
 import random
 from collections import OrderedDict
 
+import pickle
+import os
+os.system('cls')
+
 import PySimpleGUI as sg
 from openpyxl import load_workbook
 
@@ -139,7 +143,7 @@ def build_trait_layout():
     layout = [[sg.Text(unique_build_id, size=(5, 1)),
                sg.Input(unique_build_id, size=(5, 1), k="BUILD_ID" + str(unique_build_id), disabled=True),
                sg.Input(size=(25, 1), key=("TRAIT_NAME" + str(unique_build_id))),
-               sg.Button('LOGIC', key=("LOGIC" + str(unique_build_id)), disabled=logic_disabled, size=(10, 1)),
+               sg.Button('LOGIC', key=("LOGIC" + str(unique_build_id)), disabled=True, size=(10, 1)),
                sg.Combo(values=[*list_of], size=(25, 1), key=("TRAIT_TABLE" + str(unique_build_id))),
                sg.Input(size=(15, 1), key=("TRAIT_UNIT" + str(unique_build_id))),
                sg.Checkbox('', k='is_complex' + str(unique_build_id)),
@@ -186,7 +190,7 @@ def build_layout(build_aggregate):
     layout += build_trait_layout()
     unique_build_id += 1
 
-    layout += [[sg.Text("", size=(13, 1)), sg.Text("Sub-Trait", size=(22, 1))]]
+    layout += [[sg.Button("LOAD AGG", k = "LOAD_BUILD", size=(13, 1)), sg.Text("Sub-Trait", size=(22, 1))]]
 
     trait_layout = [[]]
 
@@ -472,8 +476,9 @@ def main():
             print("[LOG] Clicked Exit!")
             break
 
-        elif event == 'About':
-            sg.popup('BOOM!')
+        if not LOGIC_window_active and event == 'LOAD_BUILD':
+            build_aggregate=pickle.load(open("test_save.dat","rb"))
+            event = "EXPAND_TRAIT0"
 
         if not LOGIC_window_active and event[:5] == "LOGIC":  # LOOK AT LEFT 5 CHARACTERS of EVENT TO DETERMINE IF ANY LOGIC BUTTON HAS BEEN PRESSED
             LOGIC_window_active = True
@@ -505,7 +510,6 @@ def main():
                     if (values['TRAIT_TABLE' + str(key)] in list_of.keys()):
                         build_aggregate[build_id] = Build_Trait(build_id,
                                                                 trait_name=t_name,
-                                                                trait_logic_type=['TRAIT_LOGIC' + str(key)],
                                                                 parent_id=trait_parent_id,
                                                                 rand_table=values['TRAIT_TABLE' + str(key)],
                                                                 trait_unit=values['TRAIT_UNIT' + str(key)],
@@ -514,11 +518,13 @@ def main():
 
                         if key != 0:
                             window['EXPAND_TRAIT' + str(key)].update(disabled=False)
+                            window['LOGIC' + str(key)].update(disabled=False)
 
                             if build_id != "0" and not (build_aggregate[build_id].trait_id in build_aggregate[build_trait_parent_id].children_id):
                                 build_aggregate[build_trait_parent_id].children_id.append(str(build_id))
                     else:
                         sg.popup_quick_message(str("Cannot save line " + str(key) + ". Not a Valid List"), background_color="Red")
+                pickle.dump(build_aggregate, open("test_save.dat","wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         elif not LOGIC_window_active and event == 'GO_TO_PARENT':
             if build_trait_parent_id != build_aggregate[build_trait_parent_id].parent_id:
@@ -541,6 +547,7 @@ def main():
                         window['is_complex' + str(layout_id)].update(value=build_aggregate[id].complex_trait)
                         window['is_primary' + str(layout_id)].update(value=build_aggregate[id].primary_trait)
                         window['EXPAND_TRAIT' + str(layout_id)].update(disabled=False)
+                        window['LOGIC' + str(layout_id)].update(disabled=False)
                         layout_id += 1
 
                     unique_build_id = int(next(reversed(build_aggregate))) + 1
@@ -553,6 +560,7 @@ def main():
                         window['is_complex' + str(empty_id)].update(value=False)
                         window['is_primary' + str(empty_id)].update(value=False)
                         window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
+                        window['LOGIC' + str(empty_id)].update(disabled=True)
 
                 else:
                     unique_build_id = int(next(reversed(build_aggregate))) + 1
@@ -565,6 +573,7 @@ def main():
                         window['is_complex' + str(empty_id)].update(value=False)
                         window['is_primary' + str(empty_id)].update(value=False)
                         window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
+                        window['LOGIC' + str(empty_id)].update(disabled=True)
 
         elif not LOGIC_window_active and event[:12] == 'EXPAND_TRAIT':
             layout_id = event[12:]
@@ -586,6 +595,7 @@ def main():
                     window['is_complex' + str(layout_id)].update(value=build_aggregate[id].complex_trait)
                     window['is_primary' + str(layout_id)].update(value=build_aggregate[id].primary_trait)
                     window['EXPAND_TRAIT' + str(layout_id)].update(disabled=False)
+                    window['LOGIC' + str(layout_id)].update(disabled=False)
                     layout_id += 1
 
                 unique_build_id = int(next(reversed(build_aggregate))) + 1
@@ -598,6 +608,7 @@ def main():
                     window['is_complex' + str(empty_id)].update(value=False)
                     window['is_primary' + str(empty_id)].update(value=False)
                     window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
+                    window['LOGIC' + str(empty_id)].update(disabled=True)
             else:
 
                 unique_build_id = int(next(reversed(build_aggregate))) + 1
@@ -610,6 +621,7 @@ def main():
                     window['is_complex' + str(empty_id)].update(value=False)
                     window['is_primary' + str(empty_id)].update(value=False)
                     window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
+                    window['LOGIC' + str(empty_id)].update(disabled=True)
 
         elif not LOGIC_window_active and event == 'GENERATE_AGGREGATE':
             window['GAME_ID0'].update(value=game_trait_parent_id)
@@ -730,7 +742,9 @@ def main():
             if logic_event == None:
                 close_logic_window = True
             else:
-                if build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic.type != "NoLogic" and load_existing_logic:
+                print("logic_key=",logic_key)
+                print("values['BUILD_ID'+str(logic_key)]=",values['BUILD_ID'+str(logic_key)])
+                if (values['BUILD_ID'+str(logic_key)] in build_aggregate.keys()) and build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic.type != "NoLogic" and load_existing_logic:
                     active_logic=build_aggregate[values['BUILD_ID'+str(logic_key)]].trait_logic
                     if active_logic.type == "If-Then":
                         logic_window['if_else'].update(value=active_logic.if_else)
@@ -817,7 +831,7 @@ def main():
                     elif logic_values["Logic_Tabs"] == "Case":
                         print("Case OK")
                         last_case = ["" for i in range(0,6)]
-
+                        case_case=""
                         if logic_values['case_1'] != "" and logic_values['case_test_1'] != "" and logic_values['case_roll_1'] != "":
                             case_case=logic_values['case_1']
                             case_test[1]=logic_values['case_test_1']
