@@ -4,6 +4,7 @@ from collections import OrderedDict
 import pickle
 import os
 os.system('cls')
+import copy
 
 import PySimpleGUI as sg
 from openpyxl import load_workbook
@@ -11,7 +12,7 @@ from openpyxl import load_workbook
 min_dc = 1
 max_dc = 12
 
-unique_trait_id = 0
+unique_game_id = 0
 unique_build_id = 0
 build_trait_parent_id = "0"
 game_trait_parent_id = "0"
@@ -113,18 +114,18 @@ class Build_Logic:
 
 class Build_Trait:
 
-    def __init__(self, trait_id, trait_name="", parent_id="0", children_id=[], trait_logic=Build_Logic(),
-                 rand_table="Error", complex_trait="false", trait_type="untyped", primary_trait=False, trait_unit=""):
+    def __init__(self, trait_id, trait_name="", build_parent_id="0", game_parent_id="0",children_id=[], trait_logic=Build_Logic(),
+                 rand_table="Error", trait_type="untyped", primary_trait=False, trait_unit=""):
         self.trait_name = trait_name
         self.trait_id = trait_id
-        self.parent_id = parent_id
-        self.children_id = children_id
+        self.build_parent_id = build_parent_id
+        self.game_parent_id = game_parent_id
+        self.child_id_list = children_id
         self.trait_type = trait_type
         self.trait_logic = trait_logic
         self.rand_table = rand_table
         self.trait_unit = trait_unit
         self.primary_trait = primary_trait
-        self.complex_trait = complex_trait
 
         # These Traits pertain to gameplay.
         self.trait_result = sr(random.choice(list_of[self.rand_table]))
@@ -133,15 +134,123 @@ class Build_Trait:
         self.journal_entries = {}
 
     def __str__(self):
-        trait_str = self.trait_name + "/ " + str(self.trait_id) + ":"
-        trait_str += "Table: " + str(self.trait_result) + ", with proficiency:" + str(self.proficiency_result)
+        trait_str = str(self.trait_id) + "-" + self.trait_name + ", Result:"
+        trait_str += str(self.trait_result) + ", with proficiency:" + str(self.proficiency_result)
+        trait_str += ", PARENT:" + str(self.build_parent_id)
+        trait_str += ", CHILDREN: " + str(self.child_id_list)
         return trait_str
 
     def get_trait_info(self):
         trait_info =  str(self.trait_id) + ":" + self.trait_name
         return trait_info
 
+    def reroll_all(self):
+        self.trait_result = sr(random.choice(list_of[self.rand_table]))
+        self.proficiency_result = random.randint(min_dc, max_dc)
 
+    def reroll_trait(self):
+        self.trait_result = sr(random.choice(list_of[self.rand_table]))
+
+    def reroll_prof(self):
+        self.proficiency_result = random.randint(min_dc, max_dc)
+
+    def generate(self, build_agg, game_parent_id=0):
+        global unique_game_id, game_aggregate
+        chance_fail=False
+        # print("game_parent_id=",game_parent_id)
+
+        if self.trait_logic.type == "NoLogic":
+            game_aggregate[unique_game_id] = copy.copy(self)
+            game_aggregate[unique_game_id].child_id_list = []
+            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].reroll_all()
+            game_aggregate[unique_game_id].trait_id=unique_game_id
+            print(game_aggregate[unique_game_id])
+
+        elif self.trait_logic.type == "Chance":
+            if self.trait_logic.chance_percent > random.randint(1,100):
+                chance_fail = False
+                game_aggregate[unique_game_id]=copy.copy(self)
+                game_aggregate[unique_game_id].child_id_list = []
+                game_aggregate[unique_game_id].game_parent_id=game_parent_id
+                game_aggregate[unique_game_id].reroll_all()
+                game_aggregate[unique_game_id].trait_id=unique_game_id
+                print(game_aggregate[unique_game_id])
+            else:
+                chance_fail = True
+                print("In chance", game_aggregate[game_parent_id].child_id_list)
+                game_aggregate[game_parent_id].child_id_list.remove(unique_game_id)
+
+        elif self.trait_logic.type == "Quantity":
+            temp_trait = copy.copy(self)
+            temp_trait.trait_logic.type="Clone"
+
+            game_aggregate[unique_game_id]=copy.copy(self)
+            game_aggregate[unique_game_id].child_id_list = []
+            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].reroll_all()
+            game_aggregate[unique_game_id].trait_id=unique_game_id
+            print(game_aggregate[unique_game_id])
+
+            for a in range(1,self.trait_logic.quantity_count):
+                unique_game_id +=1
+                game_aggregate[game_parent_id].child_id_list.append(unique_game_id)
+                temp_trait.generate(build_agg, game_parent_id)
+                print("ga=",game_aggregate[unique_game_id],"gapid=",game_aggregate[unique_game_id].game_parent_id)
+                game_aggregate[unique_game_id].game_parent_id = game_parent_id
+
+        elif self.trait_logic.type == "Case":
+            #THIS IS CURRENTLY USING NO LOGIC
+            #print("In case, CURRENTLY USING NO LOGIC")
+            game_aggregate[unique_game_id]=copy.copy(self)
+            game_aggregate[unique_game_id].child_id_list = []
+            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].reroll_all()
+            game_aggregate[unique_game_id].trait_id=unique_game_id
+            print(game_aggregate[unique_game_id])
+            # unique_game_id += 1
+
+        elif self.trait_logic.type == "If-Then":
+            #THIS IS CURRENTLY USING NO LOGIC
+            #print("In If-Then, CURRENTLY USING NO LOGIC")
+            game_aggregate[unique_game_id]=copy.copy(self)
+            game_aggregate[unique_game_id].child_id_list = []
+            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].reroll_all()
+            game_aggregate[unique_game_id].trait_id=unique_game_id
+            print(game_aggregate[unique_game_id])
+            # unique_game_id += 1
+
+        elif self.trait_logic.type == "Clone":
+            game_aggregate[unique_game_id] = copy.copy(self)
+            game_aggregate[unique_game_id].child_id_list = []
+            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].reroll_all()
+            game_aggregate[unique_game_id].trait_id = unique_game_id
+
+            print(game_aggregate[unique_game_id])
+
+        else:
+            print("Should have logic, but it is not implemented, reroll_all() instead")
+
+
+
+        if self.child_id_list != [] and not chance_fail:
+            curr_id=copy.copy(unique_game_id)
+            for ch_id in self.child_id_list:
+                temp_trait = copy.copy(build_agg[str(ch_id)])
+                # print("uid:",unique_game_id)
+                # print("Adding as child to ",game_aggregate[curr_id])
+                unique_game_id +=1
+                print ("CI=",curr_id,", UID=",unique_game_id)
+                game_aggregate[curr_id].child_id_list.append(unique_game_id)
+                temp_trait.generate(build_agg, curr_id)
+
+
+
+
+        # for key in game_aggregate:
+        #     print(game_aggregate[key])
 
 def import_random_lists_from_file():
     """ imports excel workbook, creates random generation lists, and list of random list categories.
@@ -169,7 +278,6 @@ def import_random_lists_from_file():
         list_of[list_name] = this_list
         categories_of_list[list_name] = list_categories
 
-
 # SUB-RESOLVE RESULTS WITH NESTED RANDOM LISTS
 def sr(this_str):
     """Sub-Resolves any nested Random Lists"""
@@ -182,7 +290,6 @@ def sr(this_str):
             pass
         this_str = this_str.replace("[" + nested_list + "]", "|" + this_result + "|")
     return this_str
-
 
 def build_trait_layout():
     global unique_build_id
@@ -200,31 +307,29 @@ def build_trait_layout():
                sg.Button('LOGIC', key=("LOGIC" + str(unique_build_id)), disabled=True, size=(10, 1)),
                sg.Combo(values=[*list_of], size=(25, 1), key=("TRAIT_TABLE" + str(unique_build_id))),
                sg.Input(size=(15, 1), key=("TRAIT_UNIT" + str(unique_build_id))),
-               sg.Checkbox('', k='is_complex' + str(unique_build_id)),
                sg.Checkbox('', k='is_primary' + str(unique_build_id)), button_element]]
     return layout
 
 def game_trait_layout():
-    global unique_trait_id
-    if unique_trait_id == 0:
+    global unique_game_id
+    if unique_game_id == 0:
         button_element = sg.Button('SAVE GAME', key=("SAVE_GAME"))
         logic_disabled = True
     else:
-        button_element = sg.Button('EXPAND', key=("EXPAND_GAME_TRAIT" + str(unique_trait_id)), disabled=True)
+        button_element = sg.Button('EXPAND', key=("EXPAND_GAME_TRAIT" + str(unique_game_id)), disabled=True)
         logic_disabled = False
 
-    layout = [[sg.Text(unique_trait_id, size=(5, 1)),
-               sg.Input(unique_trait_id, size=(5, 1), k="GAME_ID" + str(unique_trait_id), disabled=True),
-               sg.Input(size=(5, 1), k="GAME_PROFICIENCY_RESULT" + str(unique_trait_id)),
-               sg.Button("R", size=(5, 1), k="GAME_ROLL_PROFICIENCY" + str(unique_trait_id)),
-               sg.Input(size=(20, 1), key=("GAME_TRAIT_NAME" + str(unique_trait_id))),
-               sg.Input(size=(40, 1), key=("GAME_TRAIT_RESULT" + str(unique_trait_id))),
-               sg.Button("Roll", size=(5, 1), k="GAME_REROLL_TRAIT" + str(unique_trait_id)),
-               sg.Button("G", size=(5, 1), k="GAME_SEARCH" + str(unique_trait_id)),
-               sg.Button("J", size=(5, 1), k="GAME_JOURNAL" + str(unique_trait_id)),
+    layout = [[sg.Text(unique_game_id, size=(5, 1)),
+               sg.Input(unique_game_id, size=(5, 1), k="GAME_ID" + str(unique_game_id), disabled=True),
+               sg.Input(size=(5, 1), k="GAME_PROFICIENCY_RESULT" + str(unique_game_id)),
+               sg.Button("R", size=(5, 1), k="GAME_ROLL_PROFICIENCY" + str(unique_game_id)),
+               sg.Input(size=(20, 1), key=("GAME_TRAIT_NAME" + str(unique_game_id))),
+               sg.Input(size=(40, 1), key=("GAME_TRAIT_RESULT" + str(unique_game_id))),
+               sg.Button("Roll", size=(5, 1), k="GAME_REROLL_TRAIT" + str(unique_game_id)),
+               sg.Button("G", size=(5, 1), k="GAME_SEARCH" + str(unique_game_id)),
+               sg.Button("J", size=(5, 1), k="GAME_JOURNAL" + str(unique_game_id)),
                button_element]]
     return layout
-
 
 def build_layout(build_aggregate):
     global unique_build_id
@@ -236,11 +341,11 @@ def build_layout(build_aggregate):
 
     layout += [[sg.Text("lay_id", size=(5, 1)),
                 sg.Text("bld_id", size=(5, 1)),
-                sg.Text("Complex Trait", size=(22, 1)),
+                sg.Text("LOGIC", size=(20, 1)),
                 sg.Text("LOGIC", size=(10, 1)),
                 sg.Text("Trait Roll", size=(23, 1)),
                 sg.Text("Units", size=(13, 1)),
-                sg.Text("Comp?"), sg.Text("Prim?")]]
+                sg.Text("Prim?")]]
     layout += build_trait_layout()
     unique_build_id += 1
 
@@ -257,9 +362,8 @@ def build_layout(build_aggregate):
 
     return layout
 
-
 def game_layout():
-    global unique_trait_id
+    global unique_game_id
     global screen_w
     global screen_h
 
@@ -274,7 +378,7 @@ def game_layout():
                 sg.Text("Trait Name", size=(20, 1)),
                 sg.Text("Trait Result", size=(40, 1))]]
     layout += game_trait_layout()
-    unique_trait_id += 1
+    unique_game_id += 1
 
     layout += [[sg.Text("", size=(13, 1)), sg.Text("Sub-Trait", size=(22, 1))]]
 
@@ -282,7 +386,7 @@ def game_layout():
 
     for i in range(1, 26):
         new_trait_layout = game_trait_layout()
-        unique_trait_id += 1
+        unique_game_id += 1
         trait_layout += new_trait_layout
 
     layout += [[sg.Column(trait_layout, size=(int(screen_w / 2), int(screen_h * .70)))]]
@@ -333,24 +437,88 @@ def logic_tabbed_window():
 
     return sg.Window("Select Logic", layout, modal=True)
 
-def update_ui(window,new_parent_id):
+def initialize_test_agg(build_aggregate):
+    global unique_build_id
+    unique_build_id = 0
+    build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="Solar",
+                                                        build_parent_id="0",
+                                                        rand_table="SunType",
+                                                        primary_trait=True)
+    build_aggregate[str(unique_build_id)].child_id_list = []
+
+    # for key in build_aggregate:
+    #     print (build_aggregate[key])
+
+    unique_build_id += 1
+
+    build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="SpaceStoryHook?",
+                                                        build_parent_id="0",
+                                                        rand_table="SpaceStoryHook",
+                                                        primary_trait=True)
+    build_aggregate[str(unique_build_id)].child_id_list = []
+
+    build_aggregate[str(build_aggregate[str(unique_build_id)].build_parent_id)].child_id_list.append(str(unique_build_id))
+    unique_build_id += 1
+
+    for planet in range(1,4):
+        build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="Planet " + str(planet),
+                                                            build_parent_id="0",
+                                                            rand_table="PlanetClass",
+                                                            primary_trait=True)
+        build_aggregate[str(unique_build_id)].child_id_list = []
+        build_aggregate[str(build_aggregate[str(unique_build_id)].build_parent_id)].child_id_list.append(str(unique_build_id))
+        planet_id = build_aggregate[str(unique_build_id)].trait_id
+        unique_build_id += 1
+
+        build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="CivilizationStoryHook?",
+                                                            build_parent_id=str(planet_id),
+                                                            rand_table="CivilizationStoryHook",
+                                                            primary_trait=True)
+        build_aggregate[str(unique_build_id)].child_id_list = []
+        build_aggregate[str(build_aggregate[str(unique_build_id)].build_parent_id)].child_id_list.append(str(unique_build_id))
+        unique_build_id += 1
+
+        num_regions = random.randint(4,12)
+        for region in range(1,num_regions):
+            build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="Region " + str(region),
+                                                                build_parent_id=str(planet_id),
+                                                                rand_table="RockyWaterTopography",
+                                                                primary_trait=True)
+            build_aggregate[str(unique_build_id)].child_id_list = []
+            build_aggregate[str(build_aggregate[str(unique_build_id)].build_parent_id)].child_id_list.append(str(unique_build_id))
+            region_id = build_aggregate[str(unique_build_id)].trait_id
+            unique_build_id += 1
+
+            build_aggregate[str(unique_build_id)] = Build_Trait(str(unique_build_id), trait_name="RegionStoryHook?",
+                                                                build_parent_id=str(region_id),
+                                                                rand_table="RegionStoryHook",
+                                                                primary_trait=True)
+            build_aggregate[str(unique_build_id)].child_id_list = []
+            build_aggregate[str(build_aggregate[str(unique_build_id)].build_parent_id)].child_id_list.append(str(unique_build_id))
+            unique_build_id += 1
+
+def get_next_game_id():
+    global game_aggregate, unique_game_id
+    next_id = (int(next(reversed(game_aggregate))) + 1)
+    unique_game_id += 1
+    return next_id
+
+def update_ui(window,new_parent_id,build_aggregate):
     window['BUILD_ID0'].update(value=new_parent_id)
     window['TRAIT_NAME0'].update(value=build_aggregate[new_parent_id].trait_name)
     window['TRAIT_TABLE0'].update(value=build_aggregate[new_parent_id].rand_table)
     window['TRAIT_UNIT0'].update(value=build_aggregate[new_parent_id].trait_unit)
-    window['is_complex0'].update(value=build_aggregate[new_parent_id].complex_trait)
     window['is_primary0'].update(value=build_aggregate[new_parent_id].primary_trait)
     window['LOGIC0'].update(build_aggregate[new_parent_id].trait_logic.button_text)
 
     layout_id = 1
-    if build_aggregate[new_parent_id].children_id:
+    if build_aggregate[new_parent_id].child_id_list:
 
-        for id in build_aggregate[new_parent_id].children_id:
+        for id in build_aggregate[new_parent_id].child_id_list:
             window['BUILD_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
             window['TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
             window['TRAIT_TABLE' + str(layout_id)].update(value=build_aggregate[id].rand_table)
             window['TRAIT_UNIT' + str(layout_id)].update(value=build_aggregate[id].trait_unit)
-            window['is_complex' + str(layout_id)].update(value=build_aggregate[id].complex_trait)
             window['is_primary' + str(layout_id)].update(value=build_aggregate[id].primary_trait)
             window['EXPAND_TRAIT' + str(layout_id)].update(disabled=False)
             window['LOGIC' + str(layout_id)].update(build_aggregate[id].trait_logic.button_text, disabled=False)
@@ -364,79 +532,27 @@ def update_ui(window,new_parent_id):
         window['TRAIT_NAME' + str(empty_id)].update(value="")
         window['TRAIT_TABLE' + str(empty_id)].update(value="")
         window['TRAIT_UNIT' + str(empty_id)].update(value="")
-        window['is_complex' + str(empty_id)].update(value=False)
         window['is_primary' + str(empty_id)].update(value=False)
         window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
         window['LOGIC' + str(empty_id)].update("LOGIC", disabled=True)
 
+def refresh_agg_list(build_aggregate):
+    global aggregate_list
+    aggregate_list = []
+    for trait in build_aggregate:
+        aggregate_list.append(build_aggregate[trait].get_trait_info())
 
-def initialize_test_agg(window):
-
-    temp_unique=0
-    build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="Solar",
-                                        parent_id="0",
-                                        rand_table="SunType",
-                                        primary_trait=True)
-    build_aggregate[str(temp_unique)].children_id = []
-
-    # for key in build_aggregate:
-    #     print (build_aggregate[key])
-
-    temp_unique += 1
-
-    build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="SpaceStoryHook?",
-                                               parent_id="0",
-                                               rand_table="SpaceStoryHook",
-                                               primary_trait=True)
-    build_aggregate[str(temp_unique)].children_id = []
-
-    build_aggregate[str(build_aggregate[str(temp_unique)].parent_id)].children_id.append(str(temp_unique))
-    temp_unique += 1
-
-    for planet in range(1,4):
-        build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="Planet " + str(planet),
-                                            parent_id="0",
-                                            rand_table="PlanetClass",
-                                            primary_trait=True)
-        build_aggregate[str(temp_unique)].children_id = []
-        build_aggregate[str(build_aggregate[str(temp_unique)].parent_id)].children_id.append(str(temp_unique))
-        planet_id = build_aggregate[str(temp_unique)].trait_id
-        temp_unique += 1
-
-        build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="CivilizationStoryHook?",
-                                                   parent_id=str(planet_id),
-                                                   rand_table="CivilizationStoryHook",
-                                                   primary_trait=True)
-        build_aggregate[str(temp_unique)].children_id = []
-        build_aggregate[str(build_aggregate[str(temp_unique)].parent_id)].children_id.append(str(temp_unique))
-        temp_unique += 1
-
-        num_regions = random.randint(4,12)
-        for region in range(1,num_regions):
-            build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="Region " + str(region),
-                                                       parent_id=str(planet_id),
-                                                       rand_table="RockyWaterTopography",
-                                                       primary_trait=True)
-            build_aggregate[str(temp_unique)].children_id = []
-            build_aggregate[str(build_aggregate[str(temp_unique)].parent_id)].children_id.append(str(temp_unique))
-            region_id = build_aggregate[str(temp_unique)].trait_id
-            temp_unique += 1
-
-            build_aggregate[str(temp_unique)] = Build_Trait(str(temp_unique), trait_name="RegionStoryHook?",
-                                                       parent_id=str(region_id),
-                                                       rand_table="RegionStoryHook",
-                                                       primary_trait=True)
-            build_aggregate[str(temp_unique)].children_id = []
-            build_aggregate[str(build_aggregate[str(temp_unique)].parent_id)].children_id.append(str(temp_unique))
-            temp_unique += 1
 
 def main():
     global unique_build_id
-    global unique_trait_id
+    global unique_game_id
     global build_trait_parent_id
     global game_trait_parent_id
-    global build_aggregate
+    #global build_aggregate
     build_aggregate = OrderedDict()
+    global game_aggregate
+    game_aggregate = OrderedDict()
+
     global list_of
     global aggregate_list
 
@@ -451,7 +567,6 @@ def main():
 
     last_if = ""
 
-    current_complex_trait = 0
     build_aggregate["0"] = Build_Trait("0")
 
     print(sg.Window.get_screen_size())
@@ -485,16 +600,11 @@ def main():
     LOGIC_window_active = False
     while True:
         event, values = window.read(timeout=100)
-
         # Anything in this if clause will happen one time, after the UI is initialized.
         if do_this_once:
-            initialize_test_agg(window)
+            #initialize_test_agg(build_aggregate)
+            refresh_agg_list(build_aggregate)
 
-            aggregate_list = []
-            for trait in build_aggregate:
-                aggregate_list.append(build_aggregate[trait].get_trait_info())
-
-            unique_build_id=int(next(reversed(build_aggregate)))+1
             # for key in build_aggregate:
             #     print(build_aggregate[key])
             event = "EXPAND_TRAIT0"
@@ -508,7 +618,7 @@ def main():
         if not LOGIC_window_active and event == 'LOAD_BUILD':
             build_aggregate=pickle.load(open("test_save.dat","rb"))
             build_trait_parent_id="0"
-            update_ui(window,build_trait_parent_id)
+            update_ui(window,build_trait_parent_id,build_aggregate)
 
         if not LOGIC_window_active and event[:5] == "LOGIC":  # LOOK AT LEFT 5 CHARACTERS of EVENT TO DETERMINE IF ANY LOGIC BUTTON HAS BEEN PRESSED
             LOGIC_window_active = True
@@ -529,13 +639,13 @@ def main():
 
                     build_id = values[('BUILD_ID' + str(key))]
                     if key == 0:
-                        trait_parent_id = build_aggregate[values['BUILD_ID' + str(key)]].parent_id
+                        trait_parent_id = build_aggregate[values['BUILD_ID' + str(key)]].build_parent_id
                     else:
                         trait_parent_id = build_trait_parent_id
 
                     temp_children_id = []
                     if (build_id in build_aggregate.keys()):
-                        temp_children_id = build_aggregate[values['BUILD_ID' + str(key)]].children_id
+                        temp_children_id = build_aggregate[values['BUILD_ID' + str(key)]].child_id_list
 
                     if (values['TRAIT_TABLE' + str(key)] in list_of.keys()):
                         if (values['BUILD_ID'+str(key)] in build_aggregate.keys()) and build_aggregate[build_id].trait_logic.type != "NoLogic":
@@ -549,19 +659,19 @@ def main():
 
                         build_aggregate[build_id] = Build_Trait(build_id,
                                                                 trait_name=t_name,
-                                                                parent_id=trait_parent_id,
+                                                                build_parent_id=trait_parent_id,
                                                                 rand_table=values['TRAIT_TABLE' + str(key)],
                                                                 trait_unit=values['TRAIT_UNIT' + str(key)],
                                                                 primary_trait=values['is_primary' + str(key)],
                                                                 trait_logic=temp_logic)
-                        build_aggregate[build_id].children_id = temp_children_id
+                        build_aggregate[build_id].child_id_list = temp_children_id
 
                         if key != 0:
                             window['EXPAND_TRAIT' + str(key)].update(disabled=False)
                             window['LOGIC' + str(key)].update(disabled=False)
 
-                            if build_id != "0" and not (build_aggregate[build_id].trait_id in build_aggregate[build_trait_parent_id].children_id):
-                                build_aggregate[build_trait_parent_id].children_id.append(str(build_id))
+                            if build_id != "0" and not (build_aggregate[build_id].trait_id in build_aggregate[build_trait_parent_id].child_id_list):
+                                build_aggregate[build_trait_parent_id].child_id_list.append(str(build_id))
                     else:
                         print("'TRAIT_TABLE-'", str(key), " =", values['TRAIT_TABLE' + str(key)], ", NOT IN LIST OF TABLES - TELL THE PLAYER!")
                 else:
@@ -572,48 +682,64 @@ def main():
 
         elif not LOGIC_window_active and event == 'GO_TO_PARENT':
             if build_trait_parent_id != "0":
-                build_trait_parent_id = str(build_aggregate[build_trait_parent_id].parent_id)
-                update_ui(window, build_trait_parent_id)
+                build_trait_parent_id = str(build_aggregate[build_trait_parent_id].build_parent_id)
+                update_ui(window, build_trait_parent_id,build_aggregate)
             else:
                 print("Can't Go to Parent, Wouldn't be prudent! (You are in the Prime Trait)")
 
         elif not LOGIC_window_active and event[:12] == 'EXPAND_TRAIT':
             layout_id = event[12:]
             build_trait_parent_id = values[('BUILD_ID' + layout_id)]
-            update_ui(window, build_trait_parent_id)
+            update_ui(window, build_trait_parent_id,build_aggregate)
 
         elif not LOGIC_window_active and event == 'GENERATE_AGGREGATE':
-            window['GAME_ID0'].update(value=game_trait_parent_id)
-            window['GAME_PROFICIENCY_RESULT0'].update(value=build_aggregate[game_trait_parent_id].proficiency_result)
-            window['GAME_TRAIT_NAME0'].update(value=build_aggregate[game_trait_parent_id].trait_name)
-            window['GAME_TRAIT_RESULT0'].update(
-                value=build_aggregate[game_trait_parent_id].trait_result + " " + build_aggregate[
-                    game_trait_parent_id].trait_unit)
+            # for k in build_aggregate:
+            #     print(build_aggregate[k])
 
-            if build_aggregate[game_trait_parent_id].children_id:
-                layout_id = 1
+            unique_game_id = 0
+            game_aggregate = OrderedDict()
 
-                for id in build_aggregate[game_trait_parent_id].children_id:
-                    window['GAME_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
-                    window['GAME_PROFICIENCY_RESULT' + str(layout_id)].update(
-                        value=build_aggregate[id].proficiency_result)
-                    window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
-                    window['GAME_TRAIT_RESULT' + str(layout_id)].update(
-                        value=build_aggregate[id].trait_result + " " + build_aggregate[id].trait_unit)
-                    window['EXPAND_GAME_TRAIT' + str(layout_id)].update(disabled=False)
-                    layout_id += 1
+            build_aggregate["0"].generate(build_aggregate)
+            refresh_agg_list(build_aggregate)
 
-                for empty_id in range(layout_id, 26):
-                    window['GAME_ID' + str(layout_id)].update(value=unique_build_id)
-                    unique_build_id += 1
-                    window['GAME_PROFICIENCY_RESULT' + str(layout_id)].update(value="")
-                    window['GAME_TRAIT_NAME' + str(layout_id)].update(value="")
-                    window['GAME_TRAIT_RESULT' + str(layout_id)].update(value="")
-                    window['EXPAND_GAME_TRAIT' + str(layout_id)].update(disabled=True)
+            for k in game_aggregate:
+                print(game_aggregate[k])
+
+
+
+
+            #
+            # window['GAME_ID0'].update(value=game_trait_parent_id)
+            # window['GAME_PROFICIENCY_RESULT0'].update(value=build_aggregate[game_trait_parent_id].proficiency_result)
+            # window['GAME_TRAIT_NAME0'].update(value=build_aggregate[game_trait_parent_id].trait_name)
+            # window['GAME_TRAIT_RESULT0'].update(
+            #     value=build_aggregate[game_trait_parent_id].trait_result + " " + build_aggregate[
+            #         game_trait_parent_id].trait_unit)
+            #
+            # if build_aggregate[game_trait_parent_id].children_id:
+            #     layout_id = 1
+            #
+            #     for id in build_aggregate[game_trait_parent_id].children_id:
+            #         window['GAME_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
+            #         window['GAME_PROFICIENCY_RESULT' + str(layout_id)].update(
+            #             value=build_aggregate[id].proficiency_result)
+            #         window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
+            #         window['GAME_TRAIT_RESULT' + str(layout_id)].update(
+            #             value=build_aggregate[id].trait_result + " " + build_aggregate[id].trait_unit)
+            #         window['EXPAND_GAME_TRAIT' + str(layout_id)].update(disabled=False)
+            #         layout_id += 1
+            #
+            #     for empty_id in range(layout_id, 26):
+            #         window['GAME_ID' + str(empty_id)].update(value=unique_build_id)
+            #         unique_build_id += 1
+            #         window['GAME_PROFICIENCY_RESULT' + str(empty_id)].update(value="")
+            #         window['GAME_TRAIT_NAME' + str(empty_id)].update(value="")
+            #         window['GAME_TRAIT_RESULT' + str(empty_id)].update(value="")
+            #         window['EXPAND_GAME_TRAIT' + str(empty_id)].update(disabled=True)
 
         elif not LOGIC_window_active and event == 'GO_TO_GAME_PARENT':
-            if game_trait_parent_id != build_aggregate[game_trait_parent_id].parent_id:
-                game_trait_parent_id = build_aggregate[game_trait_parent_id].parent_id
+            if game_trait_parent_id != build_aggregate[game_trait_parent_id].build_parent_id:
+                game_trait_parent_id = build_aggregate[game_trait_parent_id].build_parent_id
                 window['GAME_ID0'].update(value=game_trait_parent_id)
                 window['GAME_PROFICIENCY_RESULT0'].update(
                     value=build_aggregate[game_trait_parent_id].proficiency_result)
@@ -621,16 +747,16 @@ def main():
                 window['GAME_TRAIT_RESULT0'].update(
                     value=build_aggregate[game_trait_parent_id].trait_result + " " + build_aggregate[id].trait_unit)
 
-                if build_aggregate[game_trait_parent_id].children_id:
+                if build_aggregate[game_trait_parent_id].child_id_list:
                     layout_id = 1
 
-                    for id in build_aggregate[game_trait_parent_id].children_id:
-                        window['GAME_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
+                    for this_id in build_aggregate[game_trait_parent_id].child_id_list:
+                        window['GAME_ID' + str(layout_id)].update(value=build_aggregate[this_id].trait_id)
                         window['GAME_PROFICIENCY_RESULT' + str(layout_id)].update(
-                            value=build_aggregate[id].proficiency_result)
-                        window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
+                            value=build_aggregate[this_id].proficiency_result)
+                        window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[this_id].trait_name)
                         window['GAME_TRAIT_RESULT' + str(layout_id)].update(
-                            value=build_aggregate[id].trait_result + " " + build_aggregate[id].trait_unit)
+                            value=build_aggregate[this_id].trait_result + " " + build_aggregate[this_id].trait_unit)
                         window['EXPAND_GAME_TRAIT' + str(layout_id)].update(disabled=False)
                         layout_id += 1
 
@@ -649,7 +775,6 @@ def main():
                         window['TRAIT_NAME' + str(empty_id)].update(value="")
                         window['TRAIT_TABLE' + str(empty_id)].update(value="")
                         window['TRAIT_UNIT' + str(empty_id)].update(value="")
-                        window['is_complex' + str(empty_id)].update(value=False)
                         window['is_primary' + str(empty_id)].update(value=False)
                         window['EXPAND_TRAIT' + str(empty_id)].update(disabled=True)
 
@@ -663,15 +788,15 @@ def main():
                 value=build_aggregate[game_trait_parent_id].trait_result + " " + build_aggregate[
                     game_trait_parent_id].trait_unit)
 
-            if build_aggregate[game_trait_parent_id].children_id:
+            if build_aggregate[game_trait_parent_id].child_id_list:
                 layout_id = 1
-                for id in build_aggregate[game_trait_parent_id].children_id:
-                    window['GAME_ID' + str(layout_id)].update(value=build_aggregate[id].trait_id)
+                for this_id in build_aggregate[game_trait_parent_id].child_id_list:
+                    window['GAME_ID' + str(layout_id)].update(value=build_aggregate[this_id].trait_id)
                     window['GAME_PROFICIENCY_RESULT' + str(layout_id)].update(
-                        value=build_aggregate[id].proficiency_result)
-                    window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[id].trait_name)
+                        value=build_aggregate[this_id].proficiency_result)
+                    window['GAME_TRAIT_NAME' + str(layout_id)].update(value=build_aggregate[this_id].trait_name)
                     window['GAME_TRAIT_RESULT' + str(layout_id)].update(
-                        value=build_aggregate[id].trait_result + " " + build_aggregate[id].trait_unit)
+                        value=build_aggregate[this_id].trait_result + " " + build_aggregate[this_id].trait_unit)
                     window['EXPAND_GAME_TRAIT' + str(layout_id)].update(disabled=False)
                     layout_id += 1
 
@@ -835,6 +960,9 @@ def main():
 
     window.close()
     exit(0)
+
+
+
 
 
 import_random_lists_from_file()  # TURNED OFF FOR TESTING UI
