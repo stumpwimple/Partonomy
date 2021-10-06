@@ -136,8 +136,8 @@ class Build_Trait:
     def __str__(self):
         trait_str = str(self.trait_id) + "-" + self.trait_name + ", Result:"
         trait_str += str(self.trait_result) + ", with proficiency:" + str(self.proficiency_result)
-        trait_str += ", PARENT:" + str(self.build_parent_id)
-        trait_str += ", CHILDREN: " + str(self.child_id_list)
+        trait_str += ", PARENTS:(b-" + str(self.build_parent_id) + " / g-" + str(self.game_parent_id)
+        trait_str += "), CHILDREN: " + str(self.child_id_list)
         return trait_str
 
     def get_trait_info(self):
@@ -154,15 +154,15 @@ class Build_Trait:
     def reroll_prof(self):
         self.proficiency_result = random.randint(min_dc, max_dc)
 
-    def generate(self, build_agg, game_parent_id=0):
+    def generate(self, build_agg, new_game_parent_id=0):
         global unique_game_id, game_aggregate
         chance_fail=False
-        # print("game_parent_id=",game_parent_id)
+        # print("new_game_parent_id=",new_game_parent_id)
 
         if self.trait_logic.type == "NoLogic":
             game_aggregate[unique_game_id] = copy.copy(self)
             game_aggregate[unique_game_id].child_id_list = []
-            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
             print(game_aggregate[unique_game_id])
@@ -172,39 +172,46 @@ class Build_Trait:
                 chance_fail = False
                 game_aggregate[unique_game_id]=copy.copy(self)
                 game_aggregate[unique_game_id].child_id_list = []
-                game_aggregate[unique_game_id].game_parent_id=game_parent_id
+                game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
                 game_aggregate[unique_game_id].reroll_all()
                 game_aggregate[unique_game_id].trait_id=unique_game_id
                 print(game_aggregate[unique_game_id])
             else:
                 chance_fail = True
-                print("In chance", game_aggregate[game_parent_id].child_id_list)
-                game_aggregate[game_parent_id].child_id_list.remove(unique_game_id)
+                print("Failed chance", game_aggregate[new_game_parent_id].child_id_list)
+                game_aggregate[new_game_parent_id].child_id_list.remove(unique_game_id)
+                unique_game_id -=1
 
         elif self.trait_logic.type == "Quantity":
-            temp_trait = copy.copy(self)
+            temp_trait = copy.deepcopy(self)
             temp_trait.trait_logic.type="Clone"
 
+            print("Before prime creation new_game_parent_id=", new_game_parent_id, ", type=", self.trait_logic.type)
             game_aggregate[unique_game_id]=copy.copy(self)
             game_aggregate[unique_game_id].child_id_list = []
-            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
+            prime_game_id=copy.copy(unique_game_id)
+            print("Before clone.generate prime_game_id=",prime_game_id)
+
             print(game_aggregate[unique_game_id])
 
             for a in range(1,self.trait_logic.quantity_count):
                 unique_game_id +=1
-                game_aggregate[game_parent_id].child_id_list.append(unique_game_id)
-                temp_trait.generate(build_agg, game_parent_id)
-                print("ga=",game_aggregate[unique_game_id],"gapid=",game_aggregate[unique_game_id].game_parent_id)
-                game_aggregate[unique_game_id].game_parent_id = game_parent_id
+                game_aggregate[new_game_parent_id].child_id_list.append(unique_game_id)
+                print("Before clone.generate new_game_parent_id=",prime_game_id)
+                temp_trait.generate(build_agg, new_game_parent_id)
+                #game_aggregate[unique_game_id].game_parent_id = prime_game_parent
+
+            print(self.trait_id, " Before having children, logic =", self.trait_logic.type)
 
         elif self.trait_logic.type == "Case":
             #THIS IS CURRENTLY USING NO LOGIC
             #print("In case, CURRENTLY USING NO LOGIC")
             game_aggregate[unique_game_id]=copy.copy(self)
             game_aggregate[unique_game_id].child_id_list = []
-            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
             print(game_aggregate[unique_game_id])
@@ -215,7 +222,7 @@ class Build_Trait:
             #print("In If-Then, CURRENTLY USING NO LOGIC")
             game_aggregate[unique_game_id]=copy.copy(self)
             game_aggregate[unique_game_id].child_id_list = []
-            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
             print(game_aggregate[unique_game_id])
@@ -224,19 +231,24 @@ class Build_Trait:
         elif self.trait_logic.type == "Clone":
             game_aggregate[unique_game_id] = copy.copy(self)
             game_aggregate[unique_game_id].child_id_list = []
-            game_aggregate[unique_game_id].game_parent_id=game_parent_id
+            game_aggregate[unique_game_id].game_parent_id=new_game_parent_id
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id = unique_game_id
-
-            print(game_aggregate[unique_game_id])
+            print("CLONE:",game_aggregate[unique_game_id])
 
         else:
             print("Should have logic, but it is not implemented, reroll_all() instead")
 
 
 
+        print(self.trait_id, " Before having children, logic =", self.trait_logic.type)
         if self.child_id_list != [] and not chance_fail:
-            curr_id=copy.copy(unique_game_id)
+            if self.trait_logic.type == "Quantity":
+                print("In qty loop, prime_game_id=",prime_game_id)
+                curr_id=copy.copy(prime_game_id)
+            else:
+                curr_id=copy.copy(unique_game_id)
+
             for ch_id in self.child_id_list:
                 temp_trait = copy.copy(build_agg[str(ch_id)])
                 # print("uid:",unique_game_id)
