@@ -157,7 +157,6 @@ class Build_Trait:
     def generate(self, build_agg, new_game_parent_id=0):
         global unique_game_id, game_aggregate
         chance_fail=False
-        # print("new_game_parent_id=",new_game_parent_id)
 
         if self.trait_logic.type == "NoLogic":
             game_aggregate[unique_game_id] = copy.copy(self)
@@ -209,7 +208,6 @@ class Build_Trait:
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
             print(game_aggregate[unique_game_id])
-            # unique_game_id += 1
 
         elif self.trait_logic.type == "If-Then":
             #THIS IS CURRENTLY USING NO LOGIC
@@ -220,7 +218,6 @@ class Build_Trait:
             game_aggregate[unique_game_id].reroll_all()
             game_aggregate[unique_game_id].trait_id=unique_game_id
             print(game_aggregate[unique_game_id])
-            # unique_game_id += 1
 
         elif self.trait_logic.type == "Clone":
             game_aggregate[unique_game_id] = copy.copy(self)
@@ -233,9 +230,6 @@ class Build_Trait:
         else:
             print("Should have logic, but it is not implemented, reroll_all() instead")
 
-
-
-        print(self.trait_id, " Before having children, logic =", self.trait_logic.type)
         if self.child_id_list != [] and not chance_fail:
             if self.trait_logic.type == "Quantity":
                 curr_id=copy.copy(prime_game_id)
@@ -282,6 +276,7 @@ def import_random_lists_from_file():
 
 # SUB-RESOLVE RESULTS WITH NESTED RANDOM LISTS
 def sr(this_str):
+    this_str=str(this_str)
     """Sub-Resolves any nested Random Lists"""
     while "[" in this_str:
         nested_list = this_str[this_str.find("[") + 1:this_str.find("]")]
