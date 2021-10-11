@@ -613,7 +613,10 @@ def main():
             break
 
         if not LOGIC_window_active and event == 'LOAD_BUILD':
-            build_aggregate=pickle.load(open("test_save.dat","rb"))
+            filepath = sg.popup_get_file("Please select file",
+                file_types=(("Partonomy Files", "*.dat"), ("All Files", "*.*"))
+            )
+            build_aggregate=pickle.load(open(filepath,"rb"))
             build_trait_parent_id="0"
             update_ui(window,build_trait_parent_id,build_aggregate)
 
@@ -625,6 +628,9 @@ def main():
             print("[LOG] User Entered LOGIC #" + logic_key + " menu: ")
 
         elif not LOGIC_window_active and event == 'SAVE_BUILD':
+            filepath = sg.popup_get_file("Please select file", save_as=True,
+                file_types=(("Partonomy Files", "*.dat"), ("All Files", "*.*"))
+            )
             print("SAVING")
             for key in range(0, 26):
                 if values[('TRAIT_TABLE' + str(key))] != "":
@@ -675,7 +681,7 @@ def main():
                     if values['TRAIT_NAME' + str(key)] != "":
                         print("TRAIT ", str(key), ": NOT SAVED --- TRAIT_NAME =", values['TRAIT_NAME' + str(key)], ", NO TRAIT SELECTED - TELL THE PLAYER!")
 
-                pickle.dump(build_aggregate, open("test_save.dat","wb"), protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(build_aggregate, open(filepath,"wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
         elif not LOGIC_window_active and event == 'GO_TO_PARENT':
             if build_trait_parent_id != "0":
